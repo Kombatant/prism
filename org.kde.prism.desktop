@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Prism
+Comment=Import shaders as standalone KWin animation effects
+Exec=prism
+Icon=preferences-system-windows
+Categories=Qt;KDE;Settings;
+Terminal=false
