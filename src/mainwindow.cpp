@@ -15,6 +15,7 @@
 #include <QTabBar>
 #include <QTabWidget>
 #include <QVBoxLayout>
+#include <algorithm>
 
 namespace
 {
@@ -428,19 +429,26 @@ void MainWindow::filterInstalledEffects(const QString &text)
 
 void MainWindow::updateInstalledEffectSelection()
 {
-    const bool hasSelection = m_effectsList->currentItem() != nullptr && !m_effectsList->currentItem()->isHidden();
-    m_removeEffectButton->setEnabled(hasSelection);
+    const GlslEffectInstaller::InstalledEffect *effect = selectedInstalledEffect();
+    m_removeEffectButton->setEnabled(effect && !effect->enabled);
 }
 
 void MainWindow::removeSelectedEffect()
 {
-    QListWidgetItem *item = m_effectsList->currentItem();
-    if (!item) {
+    const GlslEffectInstaller::InstalledEffect *effect = selectedInstalledEffect();
+    if (!effect) {
         return;
     }
 
-    const QString packageId = item->data(Qt::UserRole).toString();
-    const QString displayName = item->text().section(QLatin1Char('\n'), 0, 0);
+    if (effect->enabled) {
+        const QString message = QStringLiteral("Disable the effect in KWin before removing it.");
+        QMessageBox::information(this, QStringLiteral("Effect Enabled"), message);
+        updateStatus(message);
+        return;
+    }
+
+    const QString packageId = effect->packageId;
+    const QString displayName = effect->name;
     const int response = QMessageBox::question(
         this,
         QStringLiteral("Remove Effect"),
@@ -487,6 +495,24 @@ void MainWindow::updateStatus(const QString &message)
 GlslEffectInstaller::Category MainWindow::currentCategory() const
 {
     return static_cast<GlslEffectInstaller::Category>(m_categoryCombo->currentData().toInt());
+}
+
+const GlslEffectInstaller::InstalledEffect *MainWindow::selectedInstalledEffect() const
+{
+    QListWidgetItem *item = m_effectsList->currentItem();
+    if (!item || item->isHidden()) {
+        return nullptr;
+    }
+
+    const QString packageId = item->data(Qt::UserRole).toString();
+    const auto effectIt = std::find_if(m_installedEffects.cbegin(), m_installedEffects.cend(), [&packageId](const GlslEffectInstaller::InstalledEffect &effect) {
+        return effect.packageId == packageId;
+    });
+    if (effectIt == m_installedEffects.cend()) {
+        return nullptr;
+    }
+
+    return &(*effectIt);
 }
 
 QString MainWindow::effectSummary(const GlslEffectInstaller::InstalledEffect &effect) const

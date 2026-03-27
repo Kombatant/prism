@@ -657,6 +657,17 @@ bool GlslEffectInstaller::removeInstalledEffect(const QString &packageId, QStrin
         return false;
     }
 
+    QSettings kwinSettings(QStandardPaths::writableLocation(QStandardPaths::ConfigLocation) + QStringLiteral("/kwinrc"), QSettings::IniFormat);
+    kwinSettings.beginGroup(QStringLiteral("Plugins"));
+    const bool enabled = kwinSettings.value(packageId + QStringLiteral("Enabled"), false).toBool();
+    kwinSettings.endGroup();
+    if (enabled) {
+        if (errorMessage) {
+            *errorMessage = QStringLiteral("Disable the effect in KWin before removing it.");
+        }
+        return false;
+    }
+
     if (!targetDir.removeRecursively()) {
         if (errorMessage) {
             *errorMessage = QStringLiteral("Failed to remove %1.").arg(packagePath);
@@ -664,7 +675,6 @@ bool GlslEffectInstaller::removeInstalledEffect(const QString &packageId, QStrin
         return false;
     }
 
-    QSettings kwinSettings(QStandardPaths::writableLocation(QStandardPaths::ConfigLocation) + QStringLiteral("/kwinrc"), QSettings::IniFormat);
     kwinSettings.beginGroup(QStringLiteral("Plugins"));
     kwinSettings.remove(packageId + QStringLiteral("Enabled"));
     kwinSettings.endGroup();

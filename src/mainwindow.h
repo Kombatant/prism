@@ -42,6 +42,7 @@ private:
     void setShaderPath(QLineEdit *lineEdit);
     void updateStatus(const QString &message);
     GlslEffectInstaller::Category currentCategory() const;
+    const GlslEffectInstaller::InstalledEffect *selectedInstalledEffect() const;
     QString effectSummary(const GlslEffectInstaller::InstalledEffect &effect) const;
 
     QTabWidget *m_tabs = nullptr;
