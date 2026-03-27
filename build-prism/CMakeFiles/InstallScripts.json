@@ -1,7 +1,0 @@
-{
-	"InstallScripts" : 
-	[
-		"/home/kombatant/Dev/KDE/prism/build-prism/cmake_install.cmake"
-	],
-	"Parallel" : false
-}

@@ -1,9 +1,0 @@
-/home/kombatant/Dev/KDE/prism/build-prism/CMakeFiles/prism.dir
-/home/kombatant/Dev/KDE/prism/build-prism/CMakeFiles/edit_cache.dir
-/home/kombatant/Dev/KDE/prism/build-prism/CMakeFiles/rebuild_cache.dir
-/home/kombatant/Dev/KDE/prism/build-prism/CMakeFiles/list_install_components.dir
-/home/kombatant/Dev/KDE/prism/build-prism/CMakeFiles/install.dir
-/home/kombatant/Dev/KDE/prism/build-prism/CMakeFiles/install/local.dir
-/home/kombatant/Dev/KDE/prism/build-prism/CMakeFiles/install/strip.dir
-/home/kombatant/Dev/KDE/prism/build-prism/CMakeFiles/prism_autogen_timestamp_deps.dir
-/home/kombatant/Dev/KDE/prism/build-prism/CMakeFiles/prism_autogen.dir
