@@ -2,6 +2,7 @@
 
 #include "glsleffectinstaller.h"
 
+#include <QEvent>
 #include <QList>
 #include <QWidget>
 
@@ -20,6 +21,9 @@ class MainWindow : public QWidget
 
 public:
     explicit MainWindow(QWidget *parent = nullptr);
+
+protected:
+    void changeEvent(QEvent *event) override;
 
 private Q_SLOTS:
     void browseFirstShader();

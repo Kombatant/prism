@@ -11,6 +11,7 @@
 #include <QLineEdit>
 #include <QListWidget>
 #include <QMessageBox>
+#include <QPalette>
 #include <QPushButton>
 #include <QTabBar>
 #include <QTabWidget>
@@ -36,6 +37,21 @@ QColor withAlpha(const QColor &color, int alpha)
     QColor adjusted = color;
     adjusted.setAlpha(alpha);
     return adjusted;
+}
+
+QColor blendColors(const QColor &base, const QColor &overlay, qreal overlayStrength)
+{
+    const qreal amount = std::clamp(overlayStrength, 0.0, 1.0);
+    return QColor::fromRgbF(
+        base.redF() * (1.0 - amount) + overlay.redF() * amount,
+        base.greenF() * (1.0 - amount) + overlay.greenF() * amount,
+        base.blueF() * (1.0 - amount) + overlay.blueF() * amount,
+        base.alphaF() * (1.0 - amount) + overlay.alphaF() * amount);
+}
+
+bool isDarkPalette(const QPalette &palette)
+{
+    return palette.color(QPalette::Window).lightnessF() < 0.5;
 }
 }
 
@@ -257,7 +273,7 @@ QWidget *MainWindow::buildAboutTab()
     detailsLabel->setOpenExternalLinks(true);
     detailsLabel->setWordWrap(true);
     detailsLabel->setText(QStringLiteral(
-        "<p><b>Version:</b> 0.3</p>"
+        "<p><b>Version:</b> 0.3.1</p>"
         "<p><b>Author:</b> Pete Vagiakos</p>"
         "<p><b>GitHub:</b> <a href=\"https://www.github.com/Kombatant/prism\">https://www.github.com/Kombatant/prism</a></p>"
         "<p>Use Prism to import GLSL shader pairs or supported KDL sources, generate KWin effect packages, "
@@ -272,56 +288,137 @@ QWidget *MainWindow::buildAboutTab()
 void MainWindow::applyStyle()
 {
     const QPalette palette = this->palette();
-    const QColor mutedText = palette.color(QPalette::Disabled, QPalette::WindowText);
+    const bool darkMode = isDarkPalette(palette);
+    const QColor windowColor = palette.color(QPalette::Window);
+    const QColor baseColor = palette.color(QPalette::Base);
+    const QColor textColor = palette.color(QPalette::WindowText);
     const QColor accentColor = palette.color(QPalette::Highlight);
-    const QColor infoBackground = withAlpha(accentColor, 28);
-    const QColor infoBorder = withAlpha(accentColor, 56);
+    const QColor borderColor = palette.color(QPalette::Mid);
+    const QColor mutedText = blendColors(textColor, windowColor, darkMode ? 0.32 : 0.42);
+    const QColor panelBackground = blendColors(windowColor, baseColor, darkMode ? 0.7 : 0.9);
+    const QColor panelBorder = blendColors(borderColor, accentColor, darkMode ? 0.16 : 0.08);
+    const QColor infoBackground = blendColors(windowColor, accentColor, darkMode ? 0.18 : 0.09);
+    const QColor infoBorder = blendColors(borderColor, accentColor, darkMode ? 0.5 : 0.28);
+    const QColor infoIconBackground = blendColors(windowColor, accentColor, darkMode ? 0.26 : 0.16);
+    const QColor primaryHoverColor = blendColors(accentColor, darkMode ? QColor(Qt::white) : QColor(Qt::black), darkMode ? 0.1 : 0.08);
     const QColor dangerColor = QColor(QStringLiteral("#da4453"));
     const QColor successColor = QColor(QStringLiteral("#27ae60"));
+    const QColor dangerOutline = blendColors(borderColor, dangerColor, darkMode ? 0.6 : 0.4);
+    const QColor dangerBackground = blendColors(windowColor, dangerColor, darkMode ? 0.16 : 0.08);
+    const QColor dangerHoverBackground = blendColors(windowColor, dangerColor, darkMode ? 0.24 : 0.13);
+    const QColor disabledText = palette.color(QPalette::Disabled, QPalette::ButtonText);
+    const QColor disabledBorder = palette.color(QPalette::Disabled, QPalette::Mid);
+    const QColor disabledBackground = blendColors(windowColor, baseColor, darkMode ? 0.45 : 0.7);
+    const QColor primaryText = palette.color(QPalette::HighlightedText);
 
     setStyleSheet(QStringLiteral(R"CSS(
 QLabel#subtitleLabel, QLabel#statusText {
     color: %1;
 }
 QLabel#sectionLabel {
-    color: %1;
+    color: %2;
     font-weight: 700;
 }
 QFrame#infoFrame {
-    background: %2;
-    border: 1px solid %3;
-    border-radius: 6px;
+    background: %3;
+    border: 1px solid %4;
+    border-radius: 8px;
 }
 QLabel#infoIcon {
-    background: %2;
+    background: %5;
+    border: 1px solid %4;
     border-radius: 9px;
-    color: %4;
+    color: %6;
     font-weight: 700;
 }
 QFrame#statusFrame {
-    border: 1px solid %3;
-    border-radius: 6px;
+    background: %7;
+    border: 1px solid %8;
+    border-radius: 8px;
 }
 QLabel#statusDot {
-    background: %5;
+    background: %9;
     border-radius: 4px;
     min-width: 8px;
     min-height: 8px;
     max-width: 8px;
     max-height: 8px;
 }
+QPushButton#primaryButton {
+    background: %10;
+    color: %11;
+    border: 1px solid %12;
+    border-radius: 6px;
+    font-weight: 600;
+    padding: 6px 14px;
+}
+QPushButton#primaryButton:hover {
+    background: %13;
+}
+QPushButton#primaryButton:pressed {
+    background: %12;
+}
+QPushButton#dangerButton {
+    background: %14;
+    color: %15;
+    border: 1px solid %16;
+    border-radius: 6px;
+    font-weight: 600;
+    padding: 6px 14px;
+}
+QPushButton#dangerButton:hover:!disabled {
+    background: %17;
+}
+QPushButton#dangerButton:pressed:!disabled {
+    background: %18;
+}
+QPushButton#dangerButton:disabled {
+    background: %19;
+    color: %20;
+    border: 1px solid %21;
+}
 )CSS")
         .arg(cssColor(mutedText))
+        .arg(cssColor(textColor))
         .arg(cssColor(infoBackground))
         .arg(cssColor(infoBorder))
+        .arg(cssColor(infoIconBackground))
         .arg(cssColor(accentColor))
-        .arg(cssColor(successColor)));
+        .arg(cssColor(panelBackground))
+        .arg(cssColor(panelBorder))
+        .arg(cssColor(successColor))
+        .arg(cssColor(accentColor))
+        .arg(cssColor(primaryText))
+        .arg(cssColor(primaryHoverColor))
+        .arg(cssColor(primaryHoverColor))
+        .arg(cssColor(dangerBackground))
+        .arg(cssColor(dangerColor))
+        .arg(cssColor(dangerOutline))
+        .arg(cssColor(dangerHoverBackground))
+        .arg(cssColor(blendColors(dangerHoverBackground, dangerColor, 0.12)))
+        .arg(cssColor(disabledBackground))
+        .arg(cssColor(disabledText))
+        .arg(cssColor(disabledBorder)));
 
     m_effectsList->setFrameShape(QFrame::StyledPanel);
     m_effectsList->setSpacing(4);
     m_tabs->tabBar()->setExpanding(false);
     m_tabs->tabBar()->setUsesScrollButtons(false);
-    m_removeEffectButton->setStyleSheet(QStringLiteral("color: %1;").arg(cssColor(dangerColor)));
+}
+
+void MainWindow::changeEvent(QEvent *event)
+{
+    QWidget::changeEvent(event);
+
+    switch (event->type()) {
+    case QEvent::PaletteChange:
+    case QEvent::ApplicationPaletteChange:
+    case QEvent::ThemeChange:
+        applyStyle();
+        break;
+    default:
+        break;
+    }
 }
 
 void MainWindow::browseFirstShader()

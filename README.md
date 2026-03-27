@@ -92,6 +92,6 @@ Unknown or missing `--category` defaults to `open-close`.
 
 ## Version
 
-- `0.3`
+- `0.3.1`
 - Pete Vagiakos
 - <https://www.github.com/Kombatant/prism>

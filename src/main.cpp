@@ -10,7 +10,7 @@ int main(int argc, char *argv[])
 {
     QApplication app(argc, argv);
     QCoreApplication::setApplicationName(QStringLiteral("prism"));
-    QCoreApplication::setApplicationVersion(QStringLiteral("0.3"));
+    QCoreApplication::setApplicationVersion(QStringLiteral("0.3.1"));
 
     QCommandLineParser parser;
     parser.setApplicationDescription(QStringLiteral("Import GLSL shaders as standalone KWin animation effects."));
