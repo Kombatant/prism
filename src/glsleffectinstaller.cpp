@@ -947,7 +947,7 @@ QString GlslEffectInstaller::buildMetadata(const InstallRequest &request, const 
     rootObject.insert(QStringLiteral("X-KDE-ConfigModule"), QStringLiteral("kcm_kwin4_genericscripted"));
     rootObject.insert(QStringLiteral("X-KDE-PluginKeyword"), packageId);
     rootObject.insert(QStringLiteral("X-Plasma-MainScript"), QStringLiteral("code/main.js"));
-    rootObject.insert(QStringLiteral("X-KDE-Ordering"), QStringLiteral("60"));
+    rootObject.insert(QStringLiteral("X-KDE-Ordering"), 60);
     rootObject.insert(QStringLiteral("X-KWin-Exclusive-Category"), spec.exclusiveGroup);
     rootObject.insert(QStringLiteral("X-Plasma-API"), QStringLiteral("javascript"));
     rootObject.insert(QStringLiteral("org.kde.kwin.effect"), kwinEffectObject);
