@@ -1,5 +1,8 @@
 # Prism
 
+> [!IMPORTANT]  
+> Used various LLMs as a playground for code generation and assistance in forking/structuring/coding the project.
+
 Prism is a Qt 6 desktop app that turns supported shader inputs into installable KWin effects for KDE Plasma 6.
 
 Supported inputs:
