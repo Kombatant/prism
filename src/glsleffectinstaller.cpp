@@ -429,6 +429,376 @@ var importedMinimizeRestore = {
 importedMinimizeRestore.init();
 )JS");
 }
+
+QString maximizeScript()
+{
+    return QStringLiteral(R"JS(
+"use strict";
+
+function print(message) {
+    console.error("prism-maximize: " + message);
+}
+
+var importedMaximize = {
+    duration: animationTime(250),
+    preserveBlur: false,
+    maximizeShaderId: 0,
+    restoreShaderId: 0,
+    hashString: function (value) {
+        var hash = 2166136261;
+        for (var index = 0; index < value.length; ++index) {
+            hash = ((hash << 5) - hash) + value.charCodeAt(index);
+            hash |= 0;
+        }
+        return ((hash >>> 0) % 10000) / 10000.0;
+    },
+    loadConfig: function () {
+        importedMaximize.duration = animationTime(effect.readConfig("Duration", %1));
+        importedMaximize.preserveBlur = effect.readConfig("PreserveBlur", false);
+        print("config duration=" + importedMaximize.duration + " preserveBlur=" + importedMaximize.preserveBlur);
+    },
+    shouldAnimateWindow: function (window) {
+        if (window.windowClass === "plasmashell plasmashell" ||
+            window.windowClass === "plasmashell org.kde.plasmashell") {
+            return window.hasDecoration;
+        }
+
+        if (!window.hasDecoration && window.onAllDesktops) {
+            return false;
+        }
+
+        if (window.popupWindow || window.lockScreen || window.outline) {
+            return false;
+        }
+
+        if (!window.managed) {
+            return false;
+        }
+
+        return window.normalWindow || window.dialog || window.hasDecoration;
+    },
+    setupForcedRoles: function (window) {
+        if (importedMaximize.preserveBlur) {
+            window.setData(Effect.WindowForceBackgroundContrastRole, true);
+            window.setData(Effect.WindowForceBlurRole, true);
+        } else {
+            window.setData(Effect.WindowForceBackgroundContrastRole, false);
+            window.setData(Effect.WindowForceBlurRole, false);
+        }
+    },
+    cleanupForcedRoles: function (window) {
+        if (!window) {
+            return;
+        }
+        window.setData(Effect.WindowForceBackgroundContrastRole, null);
+        window.setData(Effect.WindowForceBlurRole, null);
+    },
+    setCommonUniforms: function (shaderId, seedValue, forOpening, isFullscreen) {
+        if (!shaderId || typeof effect.setUniform !== "function") {
+            return;
+        }
+
+        try {
+            effect.setUniform(shaderId, "uForOpening", forOpening ? 1.0 : 0.0);
+        } catch (error) {}
+
+        try {
+            effect.setUniform(shaderId, "uIsFullscreen", isFullscreen ? 1.0 : 0.0);
+        } catch (error) {}
+
+        try {
+            effect.setUniform(shaderId, "uDuration", importedMaximize.duration / 1000.0);
+        } catch (error) {}
+
+        try {
+            effect.setUniform(shaderId, "uSeed", importedMaximize.hashString(seedValue));
+        } catch (error) {
+            print("failed to set uSeed: " + error);
+        }
+    },
+    loadShaders: function () {
+        importedMaximize.maximizeShaderId = 0;
+        importedMaximize.restoreShaderId = 0;
+
+        if (typeof effect.addFragmentShader !== "function" || typeof Effect.MapTexture === "undefined") {
+            print("shader API unavailable");
+            return;
+        }
+
+        try {
+            importedMaximize.maximizeShaderId = effect.addFragmentShader(Effect.MapTexture, "open.frag");
+            importedMaximize.restoreShaderId = effect.addFragmentShader(Effect.MapTexture, "close.frag");
+            print("loaded shaders maximize=" + importedMaximize.maximizeShaderId + " restore=" + importedMaximize.restoreShaderId);
+        } catch (error) {
+            print("shader load failed: " + error);
+            importedMaximize.maximizeShaderId = 0;
+            importedMaximize.restoreShaderId = 0;
+        }
+    },
+    shaderUniformAnimation: function (shaderId) {
+        if (!shaderId) {
+            return [];
+        }
+
+        return [{
+            type: Effect.ShaderUniform,
+            fragmentShader: shaderId,
+            uniform: "uProgress",
+            from: 0.0,
+            to: 1.0
+        }];
+    },
+    stopAnimation: function (window, key) {
+        if (!window[key]) {
+            return;
+        }
+
+        cancel(window[key]);
+        delete window[key];
+    },
+    runAnimation: function (window, shaderId, seedValue, forOpening, key) {
+        importedMaximize.stopAnimation(window, "importedMaximizeAnimation");
+        importedMaximize.stopAnimation(window, "importedRestoreAnimation");
+        importedMaximize.setupForcedRoles(window);
+        importedMaximize.setCommonUniforms(shaderId, seedValue, forOpening, window.fullScreen);
+
+        var animations = importedMaximize.shaderUniformAnimation(shaderId);
+        if (animations.length === 0) {
+            print(seedValue + " produced no shader animation");
+            importedMaximize.cleanupForcedRoles(window);
+            return;
+        }
+
+        window[key] = animate({
+            window: window,
+            curve: QEasingCurve.Linear,
+            duration: importedMaximize.duration,
+            keepAlive: false,
+            animations: animations
+        });
+    },
+    onWindowMaximizedStateChanged: function (window) {
+        if (effects.hasActiveFullScreenEffect || !importedMaximize.shouldAnimateWindow(window)) {
+            return;
+        }
+
+        if (window.maximized) {
+            print("windowMaximized caption=" + window.caption);
+            importedMaximize.runAnimation(window, importedMaximize.maximizeShaderId, "maximize", true, "importedMaximizeAnimation");
+        } else {
+            print("windowRestored caption=" + window.caption);
+            importedMaximize.runAnimation(window, importedMaximize.restoreShaderId, "restore", false, "importedRestoreAnimation");
+        }
+    },
+    slotWindowAdded: function (window) {
+        if (!importedMaximize.shouldAnimateWindow(window) || window.importedMaximizeTracked) {
+            return;
+        }
+
+        window.importedMaximizeTracked = true;
+        window.windowMaximizedStateChanged.connect(() => {
+            importedMaximize.onWindowMaximizedStateChanged(window);
+        });
+    },
+    init: function () {
+        effect.configChanged.connect(importedMaximize.loadConfig);
+        effect.animationEnded.connect(importedMaximize.cleanupForcedRoles);
+        effects.windowAdded.connect(importedMaximize.slotWindowAdded);
+        for (const window of effects.stackingOrder) {
+            importedMaximize.slotWindowAdded(window);
+        }
+        print("initializing maximize effect");
+        importedMaximize.loadConfig();
+        importedMaximize.loadShaders();
+    }
+};
+
+importedMaximize.init();
+)JS");
+}
+
+QString fullScreenScript()
+{
+    return QStringLiteral(R"JS(
+"use strict";
+
+function print(message) {
+    console.error("prism-fullscreen: " + message);
+}
+
+var importedFullScreen = {
+    duration: animationTime(250),
+    preserveBlur: false,
+    enterShaderId: 0,
+    exitShaderId: 0,
+    hashString: function (value) {
+        var hash = 2166136261;
+        for (var index = 0; index < value.length; ++index) {
+            hash = ((hash << 5) - hash) + value.charCodeAt(index);
+            hash |= 0;
+        }
+        return ((hash >>> 0) % 10000) / 10000.0;
+    },
+    loadConfig: function () {
+        importedFullScreen.duration = animationTime(effect.readConfig("Duration", %1));
+        importedFullScreen.preserveBlur = effect.readConfig("PreserveBlur", false);
+        print("config duration=" + importedFullScreen.duration + " preserveBlur=" + importedFullScreen.preserveBlur);
+    },
+    shouldAnimateWindow: function (window) {
+        if (window.windowClass === "plasmashell plasmashell" ||
+            window.windowClass === "plasmashell org.kde.plasmashell") {
+            return window.hasDecoration;
+        }
+
+        if (window.popupWindow || window.lockScreen || window.outline) {
+            return false;
+        }
+
+        if (!window.managed) {
+            return false;
+        }
+
+        return window.normalWindow || window.dialog || window.hasDecoration;
+    },
+    setupForcedRoles: function (window) {
+        if (importedFullScreen.preserveBlur) {
+            window.setData(Effect.WindowForceBackgroundContrastRole, true);
+            window.setData(Effect.WindowForceBlurRole, true);
+        } else {
+            window.setData(Effect.WindowForceBackgroundContrastRole, false);
+            window.setData(Effect.WindowForceBlurRole, false);
+        }
+    },
+    cleanupForcedRoles: function (window) {
+        if (!window) {
+            return;
+        }
+        window.setData(Effect.WindowForceBackgroundContrastRole, null);
+        window.setData(Effect.WindowForceBlurRole, null);
+    },
+    setCommonUniforms: function (shaderId, seedValue, forOpening, isFullscreen) {
+        if (!shaderId || typeof effect.setUniform !== "function") {
+            return;
+        }
+
+        try {
+            effect.setUniform(shaderId, "uForOpening", forOpening ? 1.0 : 0.0);
+        } catch (error) {}
+
+        try {
+            effect.setUniform(shaderId, "uIsFullscreen", isFullscreen ? 1.0 : 0.0);
+        } catch (error) {}
+
+        try {
+            effect.setUniform(shaderId, "uDuration", importedFullScreen.duration / 1000.0);
+        } catch (error) {}
+
+        try {
+            effect.setUniform(shaderId, "uSeed", importedFullScreen.hashString(seedValue));
+        } catch (error) {
+            print("failed to set uSeed: " + error);
+        }
+    },
+    loadShaders: function () {
+        importedFullScreen.enterShaderId = 0;
+        importedFullScreen.exitShaderId = 0;
+
+        if (typeof effect.addFragmentShader !== "function" || typeof Effect.MapTexture === "undefined") {
+            print("shader API unavailable");
+            return;
+        }
+
+        try {
+            importedFullScreen.enterShaderId = effect.addFragmentShader(Effect.MapTexture, "open.frag");
+            importedFullScreen.exitShaderId = effect.addFragmentShader(Effect.MapTexture, "close.frag");
+            print("loaded shaders enter=" + importedFullScreen.enterShaderId + " exit=" + importedFullScreen.exitShaderId);
+        } catch (error) {
+            print("shader load failed: " + error);
+            importedFullScreen.enterShaderId = 0;
+            importedFullScreen.exitShaderId = 0;
+        }
+    },
+    shaderUniformAnimation: function (shaderId) {
+        if (!shaderId) {
+            return [];
+        }
+
+        return [{
+            type: Effect.ShaderUniform,
+            fragmentShader: shaderId,
+            uniform: "uProgress",
+            from: 0.0,
+            to: 1.0
+        }];
+    },
+    stopAnimation: function (window, key) {
+        if (!window[key]) {
+            return;
+        }
+
+        cancel(window[key]);
+        delete window[key];
+    },
+    runAnimation: function (window, shaderId, seedValue, forOpening, key) {
+        importedFullScreen.stopAnimation(window, "importedEnterFullScreenAnimation");
+        importedFullScreen.stopAnimation(window, "importedExitFullScreenAnimation");
+        importedFullScreen.setupForcedRoles(window);
+        importedFullScreen.setCommonUniforms(shaderId, seedValue, forOpening, true);
+
+        var animations = importedFullScreen.shaderUniformAnimation(shaderId);
+        if (animations.length === 0) {
+            print(seedValue + " produced no shader animation");
+            importedFullScreen.cleanupForcedRoles(window);
+            return;
+        }
+
+        window[key] = animate({
+            window: window,
+            curve: QEasingCurve.Linear,
+            duration: importedFullScreen.duration,
+            keepAlive: false,
+            animations: animations
+        });
+    },
+    onWindowFullScreenChanged: function (window) {
+        if (effects.hasActiveFullScreenEffect || !importedFullScreen.shouldAnimateWindow(window)) {
+            return;
+        }
+
+        if (window.fullScreen) {
+            print("enterFullScreen caption=" + window.caption);
+            importedFullScreen.runAnimation(window, importedFullScreen.enterShaderId, "fullscreen-enter", true, "importedEnterFullScreenAnimation");
+        } else {
+            print("exitFullScreen caption=" + window.caption);
+            importedFullScreen.runAnimation(window, importedFullScreen.exitShaderId, "fullscreen-exit", false, "importedExitFullScreenAnimation");
+        }
+    },
+    slotWindowAdded: function (window) {
+        if (!importedFullScreen.shouldAnimateWindow(window) || window.importedFullScreenTracked) {
+            return;
+        }
+
+        window.importedFullScreenTracked = true;
+        window.windowFullScreenChanged.connect(() => {
+            importedFullScreen.onWindowFullScreenChanged(window);
+        });
+    },
+    init: function () {
+        effect.configChanged.connect(importedFullScreen.loadConfig);
+        effect.animationEnded.connect(importedFullScreen.cleanupForcedRoles);
+        effects.windowAdded.connect(importedFullScreen.slotWindowAdded);
+        for (const window of effects.stackingOrder) {
+            importedFullScreen.slotWindowAdded(window);
+        }
+        print("initializing fullscreen effect");
+        importedFullScreen.loadConfig();
+        importedFullScreen.loadShaders();
+    }
+};
+
+importedFullScreen.init();
+)JS");
+}
 }
 
 QList<GlslEffectInstaller::CategorySpec> GlslEffectInstaller::categories()
@@ -451,6 +821,24 @@ QList<GlslEffectInstaller::CategorySpec> GlslEffectInstaller::categories()
             .exclusiveGroup = QStringLiteral("minimize"),
             .firstShaderLabel = QStringLiteral("Restore Shader"),
             .secondShaderLabel = QStringLiteral("Minimize Shader"),
+        },
+        {
+            .category = Category::Maximize,
+            .id = QStringLiteral("maximize"),
+            .displayName = QStringLiteral("Maximize/Restore Animation"),
+            .metadataCategory = QStringLiteral("Maximize/Restore Animation"),
+            .exclusiveGroup = QStringLiteral("maximize"),
+            .firstShaderLabel = QStringLiteral("Maximize Shader"),
+            .secondShaderLabel = QStringLiteral("Restore Shader"),
+        },
+        {
+            .category = Category::FullScreen,
+            .id = QStringLiteral("fullscreen"),
+            .displayName = QStringLiteral("Fullscreen Animation"),
+            .metadataCategory = QStringLiteral("Fullscreen Animation"),
+            .exclusiveGroup = QStringLiteral("fullscreen"),
+            .firstShaderLabel = QStringLiteral("Enter Fullscreen Shader"),
+            .secondShaderLabel = QStringLiteral("Exit Fullscreen Shader"),
         },
     };
 }
@@ -976,7 +1364,17 @@ QString GlslEffectInstaller::buildManifest(const InstallRequest &request, const 
 
 QString GlslEffectInstaller::buildMainScript(Category category, int defaultDurationMs) const
 {
-    return (category == Category::MinimizeRestore ? minimizeRestoreScript() : openCloseScript()).arg(defaultDurationMs);
+    switch (category) {
+    case Category::MinimizeRestore:
+        return minimizeRestoreScript().arg(defaultDurationMs);
+    case Category::Maximize:
+        return maximizeScript().arg(defaultDurationMs);
+    case Category::FullScreen:
+        return fullScreenScript().arg(defaultDurationMs);
+    case Category::OpenClose:
+        break;
+    }
+    return openCloseScript().arg(defaultDurationMs);
 }
 
 QString GlslEffectInstaller::buildConfigXml(int defaultDurationMs) const

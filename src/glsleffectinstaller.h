@@ -9,6 +9,8 @@ public:
     enum class Category {
         OpenClose,
         MinimizeRestore,
+        Maximize,
+        FullScreen,
     };
 
     struct CategorySpec {

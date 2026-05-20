@@ -273,7 +273,7 @@ QWidget *MainWindow::buildAboutTab()
     detailsLabel->setOpenExternalLinks(true);
     detailsLabel->setWordWrap(true);
     detailsLabel->setText(QStringLiteral(
-        "<p><b>Version:</b> 0.3.1</p>"
+        "<p><b>Version:</b> 0.4.0</p>"
         "<p><b>Author:</b> Pete Vagiakos</p>"
         "<p><b>GitHub:</b> <a href=\"https://www.github.com/Kombatant/prism\">https://www.github.com/Kombatant/prism</a></p>"
         "<p>Use Prism to import GLSL shader pairs or supported KDL sources, generate KWin effect packages, "
